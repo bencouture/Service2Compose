@@ -93,13 +93,43 @@ func main() {
 				//So maybe just particular to how we are doing composes, but we are using the alias and
 				//we aren't using multiple aliases so really I am JUST setting up the initial one
 				//unless of course somehow thats not been set, then I just put the service name in there
+				theServiceName := ""
 				if len(theServices[serviceID].Spec.Networks) != 0 && len(theServices[serviceID].Spec.Networks[0].Aliases) != 0 {
-					fmt.Printf("  %s:\n",theServices[serviceID].Spec.Networks[0].Aliases[0])
+					theServiceName = theServices[serviceID].Spec.Networks[0].Aliases[0]
+					// fmt.Printf("  %s:\n",theServices[serviceID].Spec.Networks[0].Aliases[0])
 				} else {
-					fmt.Printf("  %s:\n", theServices[serviceID].Spec.Name)
-				}	
+					theServiceName = theServices[serviceID].Spec.Name
+					// fmt.Printf("  %s:\n", theServices[serviceID].Spec.Name)
+				}
+				if *unamePtr {
+					prefix := stackname + "_"
+					theServiceName := strings.TrimPrefix(theServiceName, prefix)
+					fmt.Printf("  %s:\n",theServiceName)
+				} else {
+					fmt.Printf("  %s:\n",theServiceName)
+				}
+					
 				//You have to have an image, I mean really and you at least need one replica
 				fmt.Println("    image: ",theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Image)
+				if theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Args != nil {
+					commandArray := make([]string, 0)
+					for argId := range theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Args {
+						theArg := theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Args[argId]
+						if strings.Contains(theArg, "=") {
+							argParts := strings.SplitN(theArg, "=", 2)
+							commandArray = append(commandArray, argParts[0])
+							commandArray = append(commandArray, argParts[1])
+							// command += "\"" + argParts[1] + "\""
+						} else {
+							// command += "\"" + theArg + "\""
+							commandArray = append(commandArray, theArg)
+						}						
+					}
+					fmt.Println("    command: [\"" + strings.Join(commandArray, "\",\"") + "\"]")
+				}
+				if theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Dir != "" {
+					fmt.Println("    working_dir: \"" + theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Dir + "\"")
+				}
 				fmt.Println("    deploy:")
 				replicas := uint64(*theServices[serviceID].Spec.Mode.Replicated.Replicas)
 				fmt.Println("      replicas: ",strconv.FormatUint(replicas,10))

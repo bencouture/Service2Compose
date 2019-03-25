@@ -16,19 +16,32 @@ import (
 )
 //  Program assumes you are running inside an environment setup with a client bundle
 
+func Contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
+}
+
+
 func main() {
-	//setup flags, right now just one	
+	//read flags
 	stackPtr := flag.String("stack", "*", "a string of the pattern to match for stacks")
 	unamePtr := flag.Bool("unname", false, "do not set network name, i.e. use default")
 	encryptPtr := flag.Bool("encrypt", false, "force networks to be created encrypted")
 	helpPtr := flag.Bool("help", false, "display help message")
 	flag.Parse()
+
+	var aquaVolumes = []string{"/bin/aquasec", "/.aquasec/scalock", "/etc/ld.so.preload", "/etc/aquasec/mode", "/etc/aquasec/binsyscalls.db", "/.aquasec"}
 	
 	if *helpPtr {
 		flag.PrintDefaults()
 		os.Exit(0)
 	}
-	//setup client environment
+
+	//set up client environment
 
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -36,14 +49,12 @@ func main() {
 	}
 
 	//grab all the services
-    	services, err := cli.ServiceList(context.Background(),types.ServiceListOptions{})
+	services, err := cli.ServiceList(context.Background(),types.ServiceListOptions{})
 	if err != nil {
 		panic(err)
 	}
 	//grab all the networks
-    	networks, err := cli.NetworkList(
-		context.Background(),
-		types.NetworkListOptions{})
+	networks, err := cli.NetworkList(context.Background(), types.NetworkListOptions{})
 	if err != nil {
 		panic(err)
 	}
@@ -64,7 +75,7 @@ func main() {
 		if !ok {
 			continue
 		} else {
-		    stacks[name] = append(stacks[name],service.ID)
+			stacks[name] = append(stacks[name],service.ID)
 		}
 		theServices[service.ID] = service
 	}
@@ -75,8 +86,8 @@ func main() {
 	if wildcard == 0 {
 		all = true
 	} else {
-	    all = false
-    }    
+		all = false
+	}    
 	fmt.Println("Request is -",*stackPtr)
 	fmt.Println()
 	//so now we go through the stacks to find the one(s) that match the request and then do some work
@@ -108,7 +119,7 @@ func main() {
 				} else {
 					fmt.Printf("  %s:\n",theServiceName)
 				}
-					
+
 				//You have to have an image, I mean really and you at least need one replica
 				fmt.Println("    image: ",theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Image)
 				if theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Args != nil {
@@ -123,7 +134,7 @@ func main() {
 						} else {
 							// command += "\"" + theArg + "\""
 							commandArray = append(commandArray, theArg)
-						}						
+						}
 					}
 					fmt.Println("    command: [\"" + strings.Join(commandArray, "\",\"") + "\"]")
 				}
@@ -151,54 +162,52 @@ func main() {
 						fmt.Println("        window: 0s")
 					} else {
 						fmt.Println("        window: ",theServices[serviceID].Spec.TaskTemplate.RestartPolicy.Window)
-					}	
+					}
 				}
 				if ( theServices[serviceID].Spec.UpdateConfig != nil) {
 					fmt.Println("      update_config:")
-				    if ( theServices[serviceID].Spec.UpdateConfig.Parallelism != 0 ) {
-				    	fmt.Printf("        parallelism: %d\n",theServices[serviceID].Spec.UpdateConfig.Parallelism)
-				    }
-				    if ( theServices[serviceID].Spec.UpdateConfig.Delay.String() != "" ) {
-				    	fmt.Printf("        delay: %s\n",theServices[serviceID].Spec.UpdateConfig.Delay.String())
-				    }
-   				    if ( theServices[serviceID].Spec.UpdateConfig.FailureAction != "" ) {
-				    	fmt.Printf("        failure_action: %s\n",theServices[serviceID].Spec.UpdateConfig.FailureAction)
-				    }
-				    if ( theServices[serviceID].Spec.UpdateConfig.Monitor.String() != "" ) {
-				    	fmt.Printf("        monitor: %s\n",theServices[serviceID].Spec.UpdateConfig.Monitor.String())
-				    }
-				    if ( theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio != 0 ) {
-				    	fmt.Printf("        max_failure_ratio %d\n",theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio)
-				    }
-//				    if ( theServices[serviceID].Spec.UpdateConfig.Order != "" ) {
-//				    	fmt.Printf("        order: %s\n",theServices[serviceID].Spec.UpdateConfig.Order)
-//				    }
+					if ( theServices[serviceID].Spec.UpdateConfig.Parallelism != 0 ) {
+						fmt.Printf("        parallelism: %d\n",theServices[serviceID].Spec.UpdateConfig.Parallelism)
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.Delay.String() != "" ) {
+						fmt.Printf("        delay: %s\n",theServices[serviceID].Spec.UpdateConfig.Delay.String())
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.FailureAction != "" ) {
+						fmt.Printf("        failure_action: %s\n",theServices[serviceID].Spec.UpdateConfig.FailureAction)
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.Monitor.String() != "" ) {
+						fmt.Printf("        monitor: %s\n",theServices[serviceID].Spec.UpdateConfig.Monitor.String())
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio != 0 ) {
+						fmt.Printf("        max_failure_ratio %d\n",theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio)
+					}
+//					order is not supported till v 3.3 of the compose file format, so commenting out for now.
+//					check the RollbackConfig section below too if you update this
+//					if ( theServices[serviceID].Spec.UpdateConfig.Order != "" ) {
+//						fmt.Printf("        order: %s\n",theServices[serviceID].Spec.UpdateConfig.Order)
+//					}
 				}
-//				
-//				
-//				   order is not supported till v 3.3 of the compose file format, so commenting out for now.
-//				
-//				
+
 				if ( theServices[serviceID].Spec.RollbackConfig != nil) {
 					fmt.Println("      rollback_config:")
-				    if ( theServices[serviceID].Spec.UpdateConfig.Parallelism != 0 ) {
-				    	fmt.Printf("        parallelism: %d\n",theServices[serviceID].Spec.UpdateConfig.Parallelism)
-				    }
-				    if ( theServices[serviceID].Spec.UpdateConfig.Delay.String() != "" ) {
-				    	fmt.Printf("        delay: %s\n",theServices[serviceID].Spec.UpdateConfig.Delay.String())
-				    }
-   				    if ( theServices[serviceID].Spec.UpdateConfig.FailureAction != "" ) {
-				    	fmt.Printf("        failure_action: %s\n",theServices[serviceID].Spec.UpdateConfig.FailureAction)
-				    }
-				    if ( theServices[serviceID].Spec.UpdateConfig.Monitor.String() != "" ) {
-				    	fmt.Printf("        monitor: %s\n",theServices[serviceID].Spec.UpdateConfig.Monitor.String())
-				    }
-				    if ( theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio != 0 ) {
-				    	fmt.Printf("        max_failure_ratio %d\n",theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio)
-				    }
-//				    if ( theServices[serviceID].Spec.UpdateConfig.Order != "" ) {
-//				    	fmt.Printf("        order: %s\n",theServices[serviceID].Spec.UpdateConfig.Order)
-//				    }
+					if ( theServices[serviceID].Spec.UpdateConfig.Parallelism != 0 ) {
+						fmt.Printf("        parallelism: %d\n",theServices[serviceID].Spec.UpdateConfig.Parallelism)
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.Delay.String() != "" ) {
+						fmt.Printf("        delay: %s\n",theServices[serviceID].Spec.UpdateConfig.Delay.String())
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.FailureAction != "" ) {
+						fmt.Printf("        failure_action: %s\n",theServices[serviceID].Spec.UpdateConfig.FailureAction)
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.Monitor.String() != "" ) {
+						fmt.Printf("        monitor: %s\n",theServices[serviceID].Spec.UpdateConfig.Monitor.String())
+					}
+					if ( theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio != 0 ) {
+						fmt.Printf("        max_failure_ratio %d\n",theServices[serviceID].Spec.UpdateConfig.MaxFailureRatio)
+					}
+//					if ( theServices[serviceID].Spec.UpdateConfig.Order != "" ) {
+//						fmt.Printf("        order: %s\n",theServices[serviceID].Spec.UpdateConfig.Order)
+//					}
 				}
 
 				//if they have constraints we need to deal with that
@@ -211,7 +220,7 @@ func main() {
 							fmt.Println(constraint)
 						} else {
 							fmt.Println("          -",constraint)
-						}	
+						}
 					}
 				}
 				if ( theServices[serviceID].Spec.TaskTemplate.Resources.Limits != nil || theServices[serviceID].Spec.TaskTemplate.Resources.Reservations != nil) {
@@ -262,7 +271,7 @@ func main() {
 								theName := strings.TrimPrefix(theNetworks[thisNetwork.Target].Name, prefix)
 								fmt.Println("      -",theName)
 							} else {
-								fmt.Println("      -",theNetworks[thisNetwork.Target].Name)						
+								fmt.Println("      -",theNetworks[thisNetwork.Target].Name)
 							}
 						} else {
 							fmt.Println("      -",theNetworks[thisNetwork.Target].Name)
@@ -278,26 +287,34 @@ func main() {
 								theName := strings.TrimPrefix(theNetworks[thisNetwork.Target].Name, prefix)
 								fmt.Println("      -",theName)
 							} else {
-								fmt.Println("      -",theNetworks[thisNetwork.Target].Name)						
+								fmt.Println("      -",theNetworks[thisNetwork.Target].Name)
 							}
 						} else {
 							fmt.Println("      -",theNetworks[thisNetwork.Target].Name)
 						}
 						myNetworks[thisNetwork.Target] = theNetworks[thisNetwork.Target].Name
 					}
-				}						
-					 				//labels again, for the service specification
+				}
+				//labels again, for the service specification
 				if len(theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Labels) != 0 {
 					fmt.Println("    labels:")
 					for key, value := range theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Labels {
 						fmt.Printf("      - %s=%s\n",key,value)
 					}
-				}	
+				}
 				//Mounts for the service specification
 				if len(theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Mounts) != 0 {
-					fmt.Println("    volumes:")
+
+					printedVolumes := false
+
 					for theMount := range theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Mounts {
-						fmt.Printf("      - %s:%s\n",theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Mounts[theMount].Source,theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Mounts[theMount].Target)
+						if !Contains(aquaVolumes, theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Mounts[theMount].Target) {
+							if !printedVolumes {
+								fmt.Println("    volumes:")
+								printedVolumes = true
+							}
+							fmt.Printf("      - %s:%s\n",theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Mounts[theMount].Source,theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Mounts[theMount].Target)
+						}
 					}
 				}	
 
@@ -307,19 +324,18 @@ func main() {
 					for _, envVar := range theServices[serviceID].Spec.TaskTemplate.ContainerSpec.Env {
 						fmt.Printf("      - %s\n",envVar)
 					}
-					
 				}
 				//Log driver information gathered and provided
 				if theServices[serviceID].Spec.TaskTemplate.LogDriver != nil {
 					if theServices[serviceID].Spec.TaskTemplate.LogDriver.Name == "" &&
-					   len(theServices[serviceID].Spec.TaskTemplate.LogDriver.Options) != 0   {
+						len(theServices[serviceID].Spec.TaskTemplate.LogDriver.Options) != 0   {
 						fmt.Println("    logging:")
 						fmt.Println("      options:")
 						for key, value := range theServices[serviceID].Spec.TaskTemplate.LogDriver.Options  {
 							fmt.Printf("        %s: %s\n",key,value)
 						}
 					} else if theServices[serviceID].Spec.TaskTemplate.LogDriver.Name != "" && 
-					   len(theServices[serviceID].Spec.TaskTemplate.LogDriver.Options) != 0   {
+						len(theServices[serviceID].Spec.TaskTemplate.LogDriver.Options) != 0   {
 						fmt.Println("    logging:")
 						fmt.Println("      driver:", theServices[serviceID].Spec.TaskTemplate.LogDriver.Name)
 						fmt.Println("      options:")
@@ -328,10 +344,10 @@ func main() {
 						}
 					} else {
 						fmt.Println("    logging:")
-						fmt.Println("      driver:", theServices[serviceID].Spec.TaskTemplate.LogDriver.Name)			
+						fmt.Println("      driver:", theServices[serviceID].Spec.TaskTemplate.LogDriver.Name)
 					}
 				}
-				fmt.Println()	
+				fmt.Println()
 			}
 			//So networks, need to dump those out, I am assuming in our implementation that if its not
 			//external its overlay, and thats cause thats how we do it, call me lazy it works for us
@@ -344,7 +360,7 @@ func main() {
 							theName := strings.TrimPrefix(netName, prefix)
 							fmt.Printf("  %s:\n",theName)
 						} else {
-								fmt.Printf("  %s:\n",netName)					
+								fmt.Printf("  %s:\n",netName)
 						}
 						fmt.Println("    driver:",theNetworks[netID].Driver)
 						if(len(theNetworks[netID].Options) != 0 ) {
@@ -358,7 +374,7 @@ func main() {
 									if ( value == "" ) {
 										optString = optString + fmt.Sprintf("        %s: \"\"\n",name)
 									} else {
-									    optString = optString + fmt.Sprintf("        %s: %s\n",name,value)
+										optString = optString + fmt.Sprintf("        %s: %s\n",name,value)
 									}
 								}	
 							}
@@ -371,15 +387,15 @@ func main() {
 							}
 						}
 						if ( len(theNetworks[netID].Labels["com.docker.ucp.access.label"]) != 0 ) {
-						  fmt.Println("    labels:")
-						  fmt.Println("       com.docker.ucp.access.label:",theNetworks[netID].Labels["com.docker.ucp.access.label"])
-						}  
+							fmt.Println("    labels:")
+							fmt.Println("       com.docker.ucp.access.label:",theNetworks[netID].Labels["com.docker.ucp.access.label"])
+						}
 					} else {
 						fmt.Printf("  %s:\n",netName)
 						fmt.Println("    external: true")
 					}
 				}
-			}		
-		}	
+			}
+		}
 	}
 }
